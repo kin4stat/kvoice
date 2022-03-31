@@ -14,6 +14,9 @@ struct OpusDecoder;
 
 namespace kvoice {
 class stream_impl final : public stream {
+    static void _foo();
+    using sconnection_t = decltype(sound_output_impl::drop_source_signal.scoped_connect(&_foo));
+
     static constexpr auto kBuffersCount = 16;
     static constexpr auto kMinBuffersCount = 8;
     static constexpr auto kRingBufferSize = 262144;
@@ -62,6 +65,8 @@ private:
 
     OpusDecoder*       decoder{ nullptr };
     sound_output_impl* output_impl{ nullptr };
+
+    sconnection_t signal_connection;
 
     bool playing{ false };
     bool has_source{ false };

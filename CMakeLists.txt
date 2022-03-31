@@ -6,6 +6,8 @@ find_package(fmt CONFIG REQUIRED)
 find_package(OpenAL CONFIG REQUIRED)
 find_package(Opus CONFIG REQUIRED)
 
+add_subdirectory("third-party")
+
 set(INCLUDE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/include")
 set(SRC_DIR "${CMAKE_CURRENT_SOURCE_DIR}/src")
 set(HPP_DIR "${CMAKE_CURRENT_SOURCE_DIR}/include/kvoice")
@@ -28,4 +30,4 @@ target_include_directories(kvoice PRIVATE ${HPP_DIR} PUBLIC ${INCLUDE_DIR})
 
 target_compile_definitions(${PROJECT_NAME} PRIVATE EXPORT_KVOICE_API)
 
-target_link_libraries(kvoice PRIVATE Opus::opus OpenAL::OpenAL fmt::fmt)
+target_link_libraries(kvoice PRIVATE Opus::opus OpenAL::OpenAL fmt::fmt ktsignal)

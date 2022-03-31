@@ -16,9 +16,9 @@ std::vector<std::string> kvoice::get_input_devices() {
 
     std::string_view s;
 
-    do {
-        res.emplace_back(res);
-    } while (!(s = get_next_str(enumerator)).empty());
+    while (!(s = get_next_str(enumerator)).empty()) {
+        res.emplace_back(s.data(), s.size());
+    }
     return res;
 }
 
@@ -43,8 +43,8 @@ std::vector<std::string> kvoice::get_output_devices() {
     return res;
 }
 
-kvoice::create_sound_output_result kvoice::create_sound_output(std::string_view device_name, std::uint32_t sample_rate,
-                                                               std::uint32_t    src_count) {
+kvoice::create_sound_device_result<kvoice::sound_output> kvoice::create_sound_output(std::string_view device_name, std::uint32_t sample_rate,
+                                                                                     std::uint32_t    src_count) {
 
     try {
         auto output = std::make_unique<sound_output_impl>(device_name, sample_rate, src_count);
@@ -54,8 +54,8 @@ kvoice::create_sound_output_result kvoice::create_sound_output(std::string_view 
     }
 }
 
-kvoice::create_sound_input_result kvoice::create_sound_input(std::string_view device_name, std::uint32_t sample_rate,
-                                                             std::uint32_t frames_per_buffer, std::uint32_t bitrate) {
+kvoice::create_sound_device_result<kvoice::sound_input> kvoice::create_sound_input(std::string_view device_name, std::uint32_t sample_rate,
+                                                                                    std::uint32_t frames_per_buffer, std::uint32_t bitrate) {
     try {
         auto output = std::make_unique<sound_input_impl>(device_name, sample_rate, frames_per_buffer, bitrate);
         return { std::move(output), "" };

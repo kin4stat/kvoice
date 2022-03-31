@@ -2,6 +2,7 @@
 #include <queue>
 
 #include "sound_output.hpp"
+#include "ktsignal/ktsignal.hpp"
 
 struct ALCdevice;
 struct ALCcontext;
@@ -68,8 +69,11 @@ public:
     [[nodiscard]] float get_gain() const { return output_gain; }
 
     [[nodiscard]] std::uint32_t get_buffering_time() const { return buffering_time; }
+    std::unique_ptr<stream>     create_stream() override;
 
+    ktsignal::ktsignal<void()> drop_source_signal;
 private:
+
     vector listener_pos{ 0.f, 0.f, 0.f };
     vector listener_vel{ 0.f, 0.f, 0.f };
     vector listener_front{ 0.f, 0.f, 0.f };
@@ -80,6 +84,7 @@ private:
     std::uint32_t* sources;
     std::uint32_t  src_count;
     std::uint32_t  buffering_time;
+    std::uint32_t  sampling_rate;
 
     std::queue<std::uint32_t> free_sources;
 

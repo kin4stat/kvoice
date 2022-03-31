@@ -8,7 +8,8 @@
 
 kvoice::stream_impl::stream_impl(sound_output_impl* output, std::uint32_t sample_rate)
     : sample_rate(sample_rate),
-      output_impl(output) {
+      output_impl(output),
+      signal_connection(output->drop_source_signal.scoped_connect([this]() {if (has_source) drop_source(); })) {
     alGenBuffers(kBuffersCount, buffers.data());
 
     for (auto buffer : buffers) {
