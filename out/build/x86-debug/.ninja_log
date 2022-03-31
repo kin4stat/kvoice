@@ -1,6 +1,0 @@
-# ninja log v5
-2	43	6704624892531341	CMakeFiles/kvoice.dir/src/kvoice.cpp.obj	650b55a708b365f0
-1	227	6704624894371324	CMakeFiles/kvoice.dir/src/sound_output_impl.cpp.obj	55278147710b4df2
-5	756	6704624899641593	CMakeFiles/kvoice.dir/src/sound_input_impl.cpp.obj	c796f27603774147
-1	231	6704625000654253	CMakeFiles/kvoice.dir/src/stream_impl.cpp.obj	45a5775c2490dc7c
-231	321	6704625000904252	kvoice.lib	4d5412c85bc55ec7

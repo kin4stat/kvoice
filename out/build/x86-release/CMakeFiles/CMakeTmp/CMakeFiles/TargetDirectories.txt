@@ -1,3 +1,0 @@
-D:/AVSProject/kvoice/out/build/x86-release/CMakeFiles/CMakeTmp/CMakeFiles/cmTC_2b621.dir
-D:/AVSProject/kvoice/out/build/x86-release/CMakeFiles/CMakeTmp/CMakeFiles/edit_cache.dir
-D:/AVSProject/kvoice/out/build/x86-release/CMakeFiles/CMakeTmp/CMakeFiles/rebuild_cache.dir

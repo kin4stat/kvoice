@@ -4,8 +4,9 @@
     "\\doc",
     "\\include",
     "\\include\\kvoice",
-    "\\src"
+    "\\src",
+    "\\third-party\\ktsignal"
   ],
-  "SelectedNode": "\\src\\kvoice.cpp",
+  "SelectedNode": "\\src\\sound_output_impl.cpp",
   "PreviewInSolutionExplorer": false
 }
