@@ -1,0 +1,3 @@
+D:/AVSProject/kvoice/out/build/x86-debug/CMakeFiles/kvoice.dir
+D:/AVSProject/kvoice/out/build/x86-debug/CMakeFiles/edit_cache.dir
+D:/AVSProject/kvoice/out/build/x86-debug/CMakeFiles/rebuild_cache.dir
