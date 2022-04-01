@@ -35,3 +35,4 @@
 *.exe
 *.out
 *.app
+/CMakePresets.json

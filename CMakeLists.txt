@@ -2,6 +2,9 @@
 
 project ("kvoice")
 
+option(BUILD_KVOICE_EXAMPLES "Build the examples" OFF)
+option(KVOICE_BUILD_STATIC "Build static libs" ON)
+
 find_package(fmt CONFIG REQUIRED)
 find_package(OpenAL CONFIG REQUIRED)
 find_package(Opus CONFIG REQUIRED)
@@ -25,9 +28,19 @@ add_library(kvoice	  "${SRC_DIR}/kvoice.cpp"
 				      "${HPP_DIR}/stream.hpp" 
 					  "${SRC_DIR}/stream_impl.hpp" "${SRC_DIR}/stream_impl.cpp" "${SRC_DIR}/ringbuffer.hpp")
 
-target_compile_features(kvoice PRIVATE cxx_std_17)
+add_library(kin4stat::kvoice ALIAS kvoice)
+
+target_compile_features(kvoice PUBLIC cxx_std_17)
 target_include_directories(kvoice PRIVATE ${HPP_DIR} PUBLIC ${INCLUDE_DIR})
 
 target_compile_definitions(${PROJECT_NAME} PRIVATE EXPORT_KVOICE_API)
 
-target_link_libraries(kvoice PRIVATE Opus::opus OpenAL::OpenAL fmt::fmt ktsignal)
+if (${KVOICE_BUILD_STATIC})
+	target_compile_definitions(${PROJECT_NAME} PUBLIC KVOICE_STATIC)
+endif()
+
+target_link_libraries(kvoice PUBLIC Opus::opus OpenAL::OpenAL PRIVATE fmt::fmt kin4stat::ktsignal)
+
+if (${BUILD_KVOICE_EXAMPLES}) 
+	add_subdirectory("examples")
+endif()
