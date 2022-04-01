@@ -180,7 +180,7 @@ bool kvoice::stream_impl::update() {
         processed--;
     }
 
-    while (!ring_buffer.isEmpty() && free_buffers.size())
+    while (!ring_buffer.isEmpty() && !free_buffers.empty())
     {
         std::array<float, 4096> temp_buffer{};
         const std::uint32_t buffer_id = free_buffers.front();

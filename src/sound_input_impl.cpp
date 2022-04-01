@@ -31,6 +31,8 @@ kvoice::sound_input_impl::sound_input_impl(std::string_view device_name, std::ui
     if ((opus_err = opus_encoder_ctl(encoder, OPUS_SET_BITRATE(bitrate))) != OPUS_OK)
         throw voice_exception::create_formatted("Couldn't set encoder bitrate (errc = {})", opus_err);
 
+    input_alive = true;
+    input_thread = std::thread(&sound_input_impl::process_input, this);
 }
 
 kvoice::sound_input_impl::~sound_input_impl() {
@@ -111,7 +113,7 @@ void kvoice::sound_input_impl::process_input() {
             }
             alcGetIntegerv(input_device, ALC_CAPTURE_SAMPLES, 1, &captured_frames);
             if (captured_frames >= frames_per_buffer_) {
-
+                capture_buffer.resize(frames_per_buffer_);
                 alcCaptureSamples(input_device, capture_buffer.data(), frames_per_buffer_);
                 buffer_captured = true;
             }

@@ -73,7 +73,6 @@ public:
 
     ktsignal::ktsignal<void()> drop_source_signal;
 private:
-
     vector listener_pos{ 0.f, 0.f, 0.f };
     vector listener_vel{ 0.f, 0.f, 0.f };
     vector listener_front{ 0.f, 0.f, 0.f };
@@ -81,14 +80,14 @@ private:
 
     float output_gain{ 1.f };
 
-    std::uint32_t* sources;
-    std::uint32_t  src_count;
-    std::uint32_t  buffering_time;
-    std::uint32_t  sampling_rate;
+    std::uint32_t* sources{ nullptr };
+    std::uint32_t  src_count{ 0 };
+    std::uint32_t  buffering_time{ 0 };
+    std::uint32_t  sampling_rate{ 0 };
 
-    std::queue<std::uint32_t> free_sources;
+    std::queue<std::uint32_t> free_sources{};
 
-    ALCdevice*  device;
-    ALCcontext* ctx;
+    ALCdevice*  device{ nullptr };
+    ALCcontext* ctx{ nullptr };
 };
 } // namespace kvoice

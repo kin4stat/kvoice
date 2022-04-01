@@ -61,7 +61,7 @@ private:
     float min_distance{ 0.f };
     float max_distance{ 100.f };
     float rollof_factor{ 1.f };
-    float extra_gain{ 0.f };
+    float extra_gain{ 1.f };
 
     OpusDecoder*       decoder{ nullptr };
     sound_output_impl* output_impl{ nullptr };
@@ -71,7 +71,7 @@ private:
     bool playing{ false };
     bool has_source{ false };
     bool source_used_once{ false };
-    bool is_spatial{ false };
+    bool is_spatial{ true };
 
     jnk0le::Ringbuffer<float, kRingBufferSize, true> ring_buffer{};
 };
