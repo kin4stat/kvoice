@@ -52,9 +52,9 @@ public:
     virtual void set_rolloff_factor(float rolloff) = 0;
     /**
      * @brief sets source spatial state
-     * @param is_spatial 
+     * @param spatial_state true if spatial 
      */
-    virtual void set_spatial_state(bool is_spatial) = 0;
+    virtual void set_spatial_state(bool spatial_state) = 0;
     /**
      * @brief sets output gain
      * @param gain new output gain
@@ -62,7 +62,7 @@ public:
     virtual void set_gain(float gain) = 0;
 
     /**
-     * @brief 
+     * @brief is playing sound now
      * @return is playing
      */
     virtual bool is_playing() = 0;

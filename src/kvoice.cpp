@@ -1,6 +1,5 @@
 ﻿#include "kvoice.hpp"
 
-#include <al.h>
 #include <alc.h>
 
 #include "voice_exception.hpp"
@@ -24,8 +23,7 @@ std::vector<std::string> kvoice::get_input_devices() {
 
 std::vector<std::string> kvoice::get_output_devices() {
     const char* enumerator = nullptr;
-    if (alcIsExtensionPresent(nullptr, "ALC_enumeration_EXT"))
-    {
+    if (alcIsExtensionPresent(nullptr, "ALC_enumeration_EXT")) {
         if (!alcIsExtensionPresent(nullptr, "ALC_enumerate_all_EXT"))
             enumerator = alcGetString(nullptr, ALC_DEVICE_SPECIFIER);
         else
@@ -43,8 +41,9 @@ std::vector<std::string> kvoice::get_output_devices() {
     return res;
 }
 
-kvoice::create_sound_device_result<kvoice::sound_output> kvoice::create_sound_output(std::string_view device_name, std::uint32_t sample_rate,
-                                                                                     std::uint32_t    src_count) {
+kvoice::create_sound_device_result<kvoice::sound_output> kvoice::create_sound_output(
+    std::string_view device_name, std::uint32_t sample_rate,
+    std::uint32_t    src_count) {
 
     try {
         auto output = std::make_unique<sound_output_impl>(device_name, sample_rate, src_count);
@@ -54,8 +53,9 @@ kvoice::create_sound_device_result<kvoice::sound_output> kvoice::create_sound_ou
     }
 }
 
-kvoice::create_sound_device_result<kvoice::sound_input> kvoice::create_sound_input(std::string_view device_name, std::uint32_t sample_rate,
-                                                                                    std::uint32_t frames_per_buffer, std::uint32_t bitrate) {
+kvoice::create_sound_device_result<kvoice::sound_input> kvoice::create_sound_input(
+    std::string_view device_name, std::uint32_t       sample_rate,
+    std::uint32_t    frames_per_buffer, std::uint32_t bitrate) {
     try {
         auto output = std::make_unique<sound_input_impl>(device_name, sample_rate, frames_per_buffer, bitrate);
         return { std::move(output), "" };

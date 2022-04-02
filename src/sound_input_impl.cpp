@@ -11,11 +11,10 @@
 
 #include "voice_exception.hpp"
 
-kvoice::sound_input_impl::sound_input_impl(std::string_view device_name, std::uint32_t       sample_rate,
-                                           std::uint32_t    frames_per_buffer, std::uint32_t bitrate)
+kvoice::sound_input_impl::sound_input_impl(std::string_view device_name, std::int32_t        sample_rate,
+                                           std::int32_t     frames_per_buffer, std::uint32_t bitrate)
     : sample_rate_(sample_rate),
       frames_per_buffer_(frames_per_buffer),
-      bitrate_(bitrate),
       input_device(alcCaptureOpenDevice(device_name.data(), sample_rate, AL_FORMAT_MONO_FLOAT32, frames_per_buffer)) {
 
     if (!input_device) throw voice_exception::create_formatted("Couldn't open capture device {}", device_name);
@@ -93,7 +92,6 @@ void kvoice::sound_input_impl::set_raw_input_callback(std::function<on_voice_raw
 void kvoice::sound_input_impl::process_input() {
     using namespace std::chrono_literals;
 
-    std::array<float, kOpusFrameSize>        opus_frame_buffer{};
     std::array<std::uint8_t, kPacketMaxSize> packet{};
     std::vector<float>                       capture_buffer(frames_per_buffer_);
     std::vector<float>                       temporary_buffer;
@@ -127,34 +125,36 @@ void kvoice::sound_input_impl::process_input() {
             std::transform(capture_buffer.begin(), capture_buffer.end(), capture_buffer.begin(),
                            [gain = input_gain.load()](const float v) { return v * gain; });
 
-            auto needed_data = kOpusFrameSize - temporary_buffer.size();
+            std::ptrdiff_t needed_data = kOpusFrameSize - static_cast<std::ptrdiff_t>(temporary_buffer.size());
 
             // move all data to temp buffer by default
             auto end_it = capture_buffer.end();
 
-            if (needed_data < capture_buffer.size()) {
+            if (needed_data < static_cast<std::ptrdiff_t>(capture_buffer.size())) {
                 // move only needed amount of data if needed data size < captured data size
                 end_it = std::next(capture_buffer.begin(), needed_data);
             }
 
             // move
             temporary_buffer.insert(temporary_buffer.cend(), std::make_move_iterator(capture_buffer.begin()),
-                std::make_move_iterator(end_it));
+                                    std::make_move_iterator(end_it));
             capture_buffer.erase(capture_buffer.begin(), end_it);
 
             // if there enough data then pass it to the encoder
             if (temporary_buffer.size() == kOpusFrameSize) {
                 // encode data and pass it to callback, then clear temporary data buffer
-                int len = opus_encode_float(encoder, temporary_buffer.data(), kOpusFrameSize, packet.data(), kPacketMaxSize);
+                int len = opus_encode_float(encoder, temporary_buffer.data(), kOpusFrameSize, packet.data(),
+                                            kPacketMaxSize);
                 if (len < 0 || len > kPacketMaxSize) return;
                 on_voice_input(packet.data(), len);
                 temporary_buffer.clear();
             }
-            auto remaining_data = capture_buffer.size();
-            std::size_t idx = 0;
+            auto           remaining_data = capture_buffer.size();
+            std::ptrdiff_t idx = 0;
             // process the remaining data if any and if its size more or equals to opus frame size
             while (remaining_data >= kOpusFrameSize) {
-                int len = opus_encode_float(encoder, &capture_buffer[idx], kOpusFrameSize, packet.data(), kPacketMaxSize);
+                int len = opus_encode_float(encoder, &capture_buffer[idx], kOpusFrameSize, packet.data(),
+                                            kPacketMaxSize);
                 if (len < 0 || len > kPacketMaxSize) return;
                 on_voice_input(packet.data(), len);
                 idx += kOpusFrameSize;
@@ -162,8 +162,9 @@ void kvoice::sound_input_impl::process_input() {
             }
             // add remaining data to the temporary buffer if any
             if (remaining_data > 0) {
-                temporary_buffer.insert(temporary_buffer.cend(), std::make_move_iterator(std::next(capture_buffer.begin(), idx)),
-                    std::make_move_iterator(capture_buffer.end()));
+                temporary_buffer.insert(temporary_buffer.cend(),
+                                        std::make_move_iterator(std::next(capture_buffer.begin(), idx)),
+                                        std::make_move_iterator(capture_buffer.end()));
                 capture_buffer.clear();
             }
 

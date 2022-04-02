@@ -15,7 +15,7 @@ constexpr auto kPacketMaxSize = 32768;
 
 class sound_input_impl final : public sound_input {
 public:
-    sound_input_impl(std::string_view device_name, std::uint32_t sample_rate, std::uint32_t frames_per_buffer,
+    sound_input_impl(std::string_view device_name, std::int32_t sample_rate, std::int32_t frames_per_buffer,
                      std::uint32_t    bitrate);
     ~sound_input_impl() override;
     bool enable_input() override;
@@ -28,9 +28,8 @@ private:
     void process_input();
 
     std::atomic<float>        input_gain{ 1.f };
-    std::uint32_t             sample_rate_{ 48000 };
-    std::uint32_t             frames_per_buffer_{ 420 };
-    std::uint32_t             bitrate_{ 16384 };
+    std::int32_t              sample_rate_{ 48000 };
+    std::int32_t              frames_per_buffer_{ 420 };
     std::chrono::milliseconds sleep_time{ 1000 };
 
     OpusEncoder* encoder{ nullptr };

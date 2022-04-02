@@ -90,7 +90,7 @@ void kvoice::sound_output_impl::change_device(std::string_view device_name) {
         free_sources.pop();
     }
 
-    alDeleteSources(src_count, sources);
+    alDeleteSources(static_cast<std::int32_t>(src_count), sources);
     delete[] sources;
 
     alcMakeContextCurrent(nullptr);

@@ -1,6 +1,5 @@
 #include "kvoice/kvoice.hpp"
 
-#include <cmath>
 #include <sstream>
 #include <thread>
 #include <chrono>
@@ -26,7 +25,8 @@ int main() {
         if (s1 && s1_active) s1->push_opus_buffer(buffer, count);
         if (s2 && s2_active) s2->push_opus_buffer(buffer, count);
     });
-    sound_input->set_raw_input_callback([](const void*, std::size_t, float) {});
+    sound_input->set_raw_input_callback([](const void*, std::size_t, float) {
+    });
     sound_input->enable_input();
 
     auto [sound_output, error_msg1] = kvoice::create_sound_output("", sample_rate, 32);
@@ -48,30 +48,28 @@ int main() {
     sound_output->update_me();
 
     std::thread([]() {
-	while (true)
-	{
-	    std::this_thread::sleep_for(std::chrono::milliseconds(20));
-	    pos_on_circle += 0.02f;
-	    float x = radius * cosf(pos_on_circle);
-	    float y = radius * -sinf(pos_on_circle);
-	    float z = 0;
-	    s1->set_position({ x, y, z });
-	    s1->set_velocity({ 0.0f, 0.0f, 0.0f });
-	    s1->set_direction({ 0.0f, 0.0f, 1.0f });
-	    if (!s1->update())
-		    return 1;
+        while (true) {
+            std::this_thread::sleep_for(std::chrono::milliseconds(20));
+            pos_on_circle += 0.02f;
+            float x = radius * cosf(pos_on_circle);
+            float y = radius * -sinf(pos_on_circle);
+            float z = 0;
+            s1->set_position({ x, y, z });
+            s1->set_velocity({ 0.0f, 0.0f, 0.0f });
+            s1->set_direction({ 0.0f, 0.0f, 1.0f });
+            if (!s1->update())
+                return 1;
 
-
-	    x = radius * cosf(pos_on_circle + 1.5f);
-	    y = radius * -sinf(pos_on_circle + 1.5f);
-	    z = 0;
-	    s2->set_position({ x, y, z });
-	    s2->set_velocity({ 0.0f, 0.0f, 0.0f });
-	    s2->set_direction({ 0.0f, 0.0f, 1.0f });
-	    if (!s2->update())
-		    return 1;
+            x = radius * cosf(pos_on_circle + 1.5f);
+            y = radius * -sinf(pos_on_circle + 1.5f);
+            z = 0;
+            s2->set_position({ x, y, z });
+            s2->set_velocity({ 0.0f, 0.0f, 0.0f });
+            s2->set_direction({ 0.0f, 0.0f, 1.0f });
+            if (!s2->update())
+                return 1;
         }
-	}).detach();
+    }).detach();
 
     while (true) {
         int key = getchar();

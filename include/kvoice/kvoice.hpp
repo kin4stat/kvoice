@@ -71,8 +71,9 @@ KVOICE_API std::vector<std::string> get_output_devices();
  * @param src_count count of max sound sources
  * @return pointer to sound device if successful, else error message string
  */
-KVOICE_API create_sound_device_result<sound_output> create_sound_output(std::string_view device_name, std::uint32_t sample_rate,
-                                                          std::uint32_t    src_count);
+KVOICE_API create_sound_device_result<sound_output> create_sound_output(std::string_view device_name,
+                                                                        std::uint32_t    sample_rate,
+                                                                        std::uint32_t    src_count);
 /**
  * @brief creates OpenAL sound input device
  * @param device_name name of input device
@@ -81,6 +82,8 @@ KVOICE_API create_sound_device_result<sound_output> create_sound_output(std::str
  * @param bitrate input device bitrate
  * @return pointer to sound device if successful, else error message string
  */
-KVOICE_API create_sound_device_result<sound_input> create_sound_input(std::string_view device_name, std::uint32_t       sample_rate,
-                                              std::uint32_t    frames_per_buffer, std::uint32_t bitrate);
+KVOICE_API create_sound_device_result<sound_input> create_sound_input(std::string_view device_name,
+                                                                      std::uint32_t    sample_rate,
+                                                                      std::uint32_t    frames_per_buffer,
+                                                                      std::uint32_t    bitrate);
 }

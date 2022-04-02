@@ -6,10 +6,10 @@
 #include <AL/alext.h>
 #include <opus.h>
 
-kvoice::stream_impl::stream_impl(sound_output_impl* output, std::uint32_t sample_rate)
+kvoice::stream_impl::stream_impl(sound_output_impl* output, std::int32_t sample_rate)
     : sample_rate(sample_rate),
       output_impl(output),
-      signal_connection(output->drop_source_signal.scoped_connect([this]() {if (has_source) drop_source(); })) {
+      signal_connection(output->drop_source_signal.scoped_connect([this]() { if (has_source) drop_source(); })) {
     alGenBuffers(kBuffersCount, buffers.data());
 
     for (auto buffer : buffers) {
@@ -17,14 +17,16 @@ kvoice::stream_impl::stream_impl(sound_output_impl* output, std::uint32_t sample
     }
 
     ALenum errc;
-    if ((errc = alGetError()) != AL_NO_ERROR) throw voice_exception::create_formatted(
-        "Failed to create al buffers (errc = {})", errc);
+    if ((errc = alGetError()) != AL_NO_ERROR)
+        throw voice_exception::create_formatted(
+            "Failed to create al buffers (errc = {})", errc);
 
     int opus_err;
     decoder = opus_decoder_create(sample_rate, 1, &opus_err);
 
-    if (opus_err != OPUS_OK || !decoder) throw voice_exception::create_formatted(
-        "Failed to opus decoder (errc = {})", opus_err);
+    if (opus_err != OPUS_OK || !decoder)
+        throw voice_exception::create_formatted(
+            "Failed to opus decoder (errc = {})", opus_err);
 }
 
 kvoice::stream_impl::~stream_impl() {
@@ -36,12 +38,15 @@ kvoice::stream_impl::~stream_impl() {
 bool kvoice::stream_impl::push_opus_buffer(const void* data, std::size_t count) {
     std::array<float, kOpusBufferSize> out{};
 
-    int frame_size = opus_decode_float(decoder, reinterpret_cast<const unsigned char*>(data), count, out.data(), kOpusBufferSize, 0);
+    const int frame_size = opus_decode_float(decoder, reinterpret_cast<const unsigned char*>(data),
+                                             static_cast<int>(count), out.data(),
+                                             kOpusBufferSize, 0);
     if (frame_size < 0) return false;
 
     float final_gain = extra_gain * output_impl->get_gain();
     if (final_gain != 1.f) {
-        std::transform(out.begin(), out.begin() + frame_size, out.begin(), [final_gain](float v) { return v * final_gain; });
+        std::transform(out.begin(), out.begin() + frame_size, out.begin(),
+                       [final_gain](float v) { return v * final_gain; });
     }
 
     ring_buffer.writeBuff(out.data(), frame_size);
@@ -89,11 +94,11 @@ void kvoice::stream_impl::set_rolloff_factor(float rolloff) {
         alSourcef(source, AL_ROLLOFF_FACTOR, rollof_factor);
 }
 
-void kvoice::stream_impl::set_spatial_state(bool is_spatial) {
-    if (this->is_spatial == is_spatial) return;
+void kvoice::stream_impl::set_spatial_state(bool spatial_state) {
+    if (this->is_spatial == spatial_state) return;
     if (!has_source) return;
 
-    this->is_spatial = is_spatial;
+    this->is_spatial = spatial_state;
     setup_spatial();
 }
 
@@ -112,8 +117,7 @@ bool kvoice::stream_impl::update() {
 
         try {
             source = output_impl->get_source();
-        }
-        catch(voice_exception&) {
+        } catch (voice_exception&) {
             return false;
         }
 
@@ -124,8 +128,7 @@ bool kvoice::stream_impl::update() {
 
         try {
             update_source(source);
-        }
-        catch (voice_exception&) {
+        } catch (voice_exception&) {
             drop_source();
             return false;
         }
@@ -141,16 +144,13 @@ bool kvoice::stream_impl::update() {
     playing = state == AL_PLAYING;
 
     alGetSourcei(source, AL_BUFFERS_PROCESSED, &processed);
-    if (alGetError() != AL_NO_ERROR)
-    {
+    if (alGetError() != AL_NO_ERROR) {
         drop_source();
         return false;
     }
 
-    if (ring_buffer.isEmpty() && !playing && source_used_once)
-    {
-        while (processed > 0)
-        {
+    if (ring_buffer.isEmpty() && !playing && source_used_once) {
+        while (processed > 0) {
             ALuint bufid;
             alSourceUnqueueBuffers(source, 1, &bufid);
             free_buffers.push(bufid);
@@ -166,56 +166,48 @@ bool kvoice::stream_impl::update() {
     else
         alSourcef(source, AL_PITCH, 1.f);
 
-    if (alGetError() != AL_NO_ERROR)
-    {
+    if (alGetError() != AL_NO_ERROR) {
         drop_source();
         return false;
     }
 
-    while (processed > 0)
-    {
+    while (processed > 0) {
         ALuint bufid;
         alSourceUnqueueBuffers(source, 1, &bufid);
         free_buffers.push(bufid);
         processed--;
     }
 
-    while (!ring_buffer.isEmpty() && !free_buffers.empty())
-    {
+    while (!ring_buffer.isEmpty() && !free_buffers.empty()) {
         std::array<float, 4096> temp_buffer{};
-        const std::uint32_t buffer_id = free_buffers.front();
+        const std::uint32_t     buffer_id = free_buffers.front();
         free_buffers.pop();
 
-        if (const std::size_t readed = ring_buffer.readBuff(temp_buffer.data(), temp_buffer.size()); readed > 0)
-        {
-            alBufferData(buffer_id, AL_FORMAT_MONO_FLOAT32, temp_buffer.data(), readed * sizeof(float), sample_rate);
-            if (alGetError() != AL_NO_ERROR)
-            {
+        if (const std::size_t readed = ring_buffer.readBuff(temp_buffer.data(), temp_buffer.size()); readed > 0) {
+            alBufferData(buffer_id, AL_FORMAT_MONO_FLOAT32, temp_buffer.data(),
+                         static_cast<int>(readed * sizeof(float)), sample_rate);
+            if (alGetError() != AL_NO_ERROR) {
                 drop_source();
                 return false;
             }
 
             alSourceQueueBuffers(source, 1, &buffer_id);
-            if (alGetError() != AL_NO_ERROR)
-            {
+            if (alGetError() != AL_NO_ERROR) {
                 drop_source();
                 return false;
             }
-        }
-        else
+        } else
             break;
     }
 
-    if (!playing)
-    {
+    if (!playing) {
         auto ctime = std::chrono::steady_clock::now();
-        auto time_from_first_buffer = std::chrono::duration_cast<std::chrono::milliseconds>(ctime - last_source_request_time).count();
-        if (time_from_first_buffer > output_impl->get_buffering_time())
-        {
+        auto time_from_first_buffer = std::chrono::duration_cast<std::chrono::milliseconds>(
+            ctime - last_source_request_time).count();
+        if (time_from_first_buffer > output_impl->get_buffering_time()) {
             alSourcePlay(source);
             source_used_once = true;
-            if (alGetError() != AL_NO_ERROR)
-            {
+            if (alGetError() != AL_NO_ERROR) {
                 drop_source();
                 return false;
             }
@@ -246,17 +238,18 @@ void kvoice::stream_impl::setup_spatial() const {
     }
 }
 
-void kvoice::stream_impl::update_source(std::uint32_t source) const {
-    alSourceRewind(source);
+void kvoice::stream_impl::update_source(std::uint32_t source_handle) const {
+    alSourceRewind(source_handle);
 
-    alSourcei(source, AL_LOOPING, false);
-    alSourcei(source, AL_BUFFER, 0);
+    alSourcei(source_handle, AL_LOOPING, false);
+    alSourcei(source_handle, AL_BUFFER, 0);
 
     setup_spatial();
 
     ALenum errc;
-    if ((errc = alGetError()) != AL_NO_ERROR) throw voice_exception::create_formatted(
-        "failed to update source (last errc = {})", errc);
+    if ((errc = alGetError()) != AL_NO_ERROR)
+        throw voice_exception::create_formatted(
+            "failed to update source (last errc = {})", errc);
 }
 
 void kvoice::stream_impl::drop_source() {

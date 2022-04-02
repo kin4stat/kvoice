@@ -1,7 +1,7 @@
 #pragma once
 
 namespace kvoice {
-    struct vector {
-        float x, y, z;
-    };
+struct vector {
+    float x, y, z;
+};
 }
