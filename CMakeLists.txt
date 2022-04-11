@@ -6,10 +6,7 @@ option(BUILD_KVOICE_EXAMPLES "Build the examples" OFF)
 option(KVOICE_BUILD_STATIC "Build static libs" ON)
 
 find_package(fmt CONFIG REQUIRED)
-find_package(OpenAL CONFIG REQUIRED)
 find_package(Opus CONFIG REQUIRED)
-
-add_subdirectory("third-party")
 
 set(INCLUDE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/include")
 set(SRC_DIR "${CMAKE_CURRENT_SOURCE_DIR}/src")

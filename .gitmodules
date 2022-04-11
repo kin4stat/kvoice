@@ -1,3 +1,0 @@
-[submodule "third-party/ktsignal"]
-	path = third-party/ktsignal
-	url = https://github.com/kin4stat/ktsignal.git
