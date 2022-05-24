@@ -41,7 +41,7 @@ std::vector<std::string> kvoice::get_output_devices() {
     return res;
 }
 
-kvoice::create_sound_device_result<kvoice::sound_output> kvoice::create_sound_output(
+kvoice::create_device_res<kvoice::sound_output> kvoice::create_sound_output(
     std::string_view device_name, std::uint32_t sample_rate,
     std::uint32_t    src_count) {
 
@@ -53,7 +53,7 @@ kvoice::create_sound_device_result<kvoice::sound_output> kvoice::create_sound_ou
     }
 }
 
-kvoice::create_sound_device_result<kvoice::sound_input> kvoice::create_sound_input(
+kvoice::create_device_res<kvoice::sound_input> kvoice::create_sound_input(
     std::string_view device_name, std::uint32_t       sample_rate,
     std::uint32_t    frames_per_buffer, std::uint32_t bitrate) {
     try {

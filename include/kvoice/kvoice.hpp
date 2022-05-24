@@ -31,7 +31,7 @@ namespace kvoice {
 inline std::string_view get_next_str(const char*& enumerator) {
     if (enumerator && *enumerator != '\0') {
         std::string_view res{ enumerator };
-        enumerator += res.size() + 2;
+        enumerator += res.size() + 1;
         return res;
     }
     return "";

@@ -61,7 +61,7 @@ bool kvoice::sound_input_impl::disable_input() {
         std::unique_lock lck(device_mutex);
         input_active = false;
         if (input_device)
-            alcCaptureStart(input_device);
+            alcCaptureStop(input_device);
         return true;
     }
     return false;

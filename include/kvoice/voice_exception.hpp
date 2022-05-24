@@ -29,7 +29,7 @@ public:
  */
 template <typename ...Ts>
 inline voice_exception voice_exception::create_formatted(std::string_view fmt, Ts&& ...args) {
-    return voice_exception{ fmt::format(fmt, std::forward<Ts>(args)...) };
+    return voice_exception{ std::vformat(fmt, std::make_format_args(std::forward<Ts>(args)...)) };
 }
 
 }
