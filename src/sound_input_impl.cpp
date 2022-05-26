@@ -7,7 +7,7 @@
 
 #include <algorithm>
 #include <array>
-#include <boost/circular_buffer.hpp>
+#include "ringbuffer.hpp"
 
 #include "voice_exception.hpp"
 
@@ -93,15 +93,14 @@ void kvoice::sound_input_impl::process_input() {
     using namespace std::chrono_literals;
 
     std::array<std::uint8_t, kPacketMaxSize> packet{};
-    std::vector<float>                       capture_buffer(frames_per_buffer_);
-    std::vector<float>                       temporary_buffer;
-    temporary_buffer.reserve(kOpusFrameSize);
+    std::vector<float> capture_buffer( frames_per_buffer_ );
+    std::vector<float> encoder_buffer( kOpusFrameSize );
+    jnk0le::Ringbuffer<float, 8192, true> temporary_buffer{};
 
     std::int32_t captured_frames;
-    bool         buffer_captured;
 
     while (input_alive) {
-        buffer_captured = false;
+        bool buffer_captured = false;
 
         {
             std::unique_lock lck(device_mutex);
@@ -111,63 +110,28 @@ void kvoice::sound_input_impl::process_input() {
             }
             alcGetIntegerv(input_device, ALC_CAPTURE_SAMPLES, 1, &captured_frames);
             if (captured_frames >= frames_per_buffer_) {
-                capture_buffer.resize(frames_per_buffer_);
                 alcCaptureSamples(input_device, capture_buffer.data(), frames_per_buffer_);
                 buffer_captured = true;
             }
         }
 
         if (buffer_captured) {
-            float mic_level = *std::max_element(capture_buffer.begin(), capture_buffer.end());
+            const float mic_level = *std::ranges::max_element(capture_buffer);
 
             on_raw_voice_input(capture_buffer.data(), capture_buffer.size(), mic_level);
 
-            std::transform(capture_buffer.begin(), capture_buffer.end(), capture_buffer.begin(),
-                           [gain = input_gain.load()](const float v) { return v * gain; });
+            std::ranges::transform(capture_buffer, capture_buffer.begin(),
+                                   [gain = input_gain.load()](const float v) { return v * gain; });
 
-            std::ptrdiff_t needed_data = kOpusFrameSize - static_cast<std::ptrdiff_t>(temporary_buffer.size());
+            temporary_buffer.writeBuff(capture_buffer.data(), capture_buffer.size());
 
-            // move all data to temp buffer by default
-            auto end_it = capture_buffer.end();
-
-            if (needed_data < static_cast<std::ptrdiff_t>(capture_buffer.size())) {
-                // move only needed amount of data if needed data size < captured data size
-                end_it = std::next(capture_buffer.begin(), needed_data);
-            }
-
-            // move
-            temporary_buffer.insert(temporary_buffer.cend(), std::make_move_iterator(capture_buffer.begin()),
-                                    std::make_move_iterator(end_it));
-            capture_buffer.erase(capture_buffer.begin(), end_it);
-
-            // if there enough data then pass it to the encoder
-            if (temporary_buffer.size() == kOpusFrameSize) {
-                // encode data and pass it to callback, then clear temporary data buffer
-                int len = opus_encode_float(encoder, temporary_buffer.data(), kOpusFrameSize, packet.data(),
-                                            kPacketMaxSize);
+            while (temporary_buffer.readAvailable() >= kOpusFrameSize) {
+                temporary_buffer.readBuff(encoder_buffer.data(), kOpusFrameSize);
+                const int  len = opus_encode_float(encoder, encoder_buffer.data(), kOpusFrameSize, packet.data(),
+                                                   kPacketMaxSize);
                 if (len < 0 || len > kPacketMaxSize) return;
                 on_voice_input(packet.data(), len);
-                temporary_buffer.clear();
             }
-            auto           remaining_data = capture_buffer.size();
-            std::ptrdiff_t idx = 0;
-            // process the remaining data if any and if its size more or equals to opus frame size
-            while (remaining_data >= kOpusFrameSize) {
-                int len = opus_encode_float(encoder, &capture_buffer[idx], kOpusFrameSize, packet.data(),
-                                            kPacketMaxSize);
-                if (len < 0 || len > kPacketMaxSize) return;
-                on_voice_input(packet.data(), len);
-                idx += kOpusFrameSize;
-                remaining_data -= kOpusFrameSize;
-            }
-            // add remaining data to the temporary buffer if any
-            if (remaining_data > 0) {
-                temporary_buffer.insert(temporary_buffer.cend(),
-                                        std::make_move_iterator(std::next(capture_buffer.begin(), idx)),
-                                        std::make_move_iterator(capture_buffer.end()));
-                capture_buffer.clear();
-            }
-
         }
 
         std::this_thread::sleep_for(sleep_time);
