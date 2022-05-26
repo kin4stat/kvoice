@@ -10,7 +10,7 @@ struct OpusEncoder;
 struct ALCdevice;
 
 namespace kvoice {
-constexpr auto kOpusFrameSize = 480;
+constexpr auto kOpusFrameSize = 960;
 constexpr auto kPacketMaxSize = 32768;
 
 class sound_input_impl final : public sound_input {
