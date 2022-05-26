@@ -5,7 +5,6 @@ project ("kvoice")
 option(BUILD_KVOICE_EXAMPLES "Build the examples" OFF)
 option(KVOICE_BUILD_STATIC "Build static libs" ON)
 
-find_package(fmt CONFIG REQUIRED)
 find_package(Opus CONFIG REQUIRED)
 
 set(INCLUDE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/include")
@@ -36,7 +35,7 @@ if (${KVOICE_BUILD_STATIC})
 	target_compile_definitions(${PROJECT_NAME} PUBLIC KVOICE_STATIC)
 endif()
 
-target_link_libraries(kvoice PUBLIC Opus::opus OpenAL::OpenAL PRIVATE fmt::fmt kin4stat::ktsignal)
+target_link_libraries(kvoice PUBLIC Opus::opus OpenAL::OpenAL PRIVATE kin4stat::ktsignal)
 
 if (${BUILD_KVOICE_EXAMPLES}) 
 	add_subdirectory("examples")
