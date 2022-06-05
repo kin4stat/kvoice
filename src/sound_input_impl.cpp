@@ -1,8 +1,5 @@
 #include "sound_input_impl.hpp"
 
-#include <AL/alc.h>
-#include <AL/al.h>
-#include <AL/alext.h>
 #include <opus.h>
 
 #include <algorithm>
@@ -15,11 +12,29 @@ kvoice::sound_input_impl::sound_input_impl(std::string_view device_name, std::in
                                            std::int32_t     frames_per_buffer, std::uint32_t bitrate)
     : sample_rate_(sample_rate),
       frames_per_buffer_(frames_per_buffer),
-      input_device(alcCaptureOpenDevice(device_name.data(), sample_rate, AL_FORMAT_MONO_FLOAT32, frames_per_buffer)) {
+      encoder_buffer(kOpusFrameSize) {
+    BOOL creation_status = false;
+    if (device_name.empty()) {
+        creation_status = BASS_RecordInit(-1); // default device
+    } else {
+        BASS_DEVICEINFO info;
+        for (auto i = 0u; BASS_RecordGetDeviceInfo(i, &info); i++) {
+            if ((info.flags & BASS_DEVICE_ENABLED) && (info.flags & BASS_DEVICE_TYPE_MASK) ==
+                BASS_DEVICE_TYPE_MICROPHONE) {
+                if (device_name == info.name) {
+                    creation_status = BASS_RecordInit(i);
+                }
+            }
+        }
+    }
 
-    if (!input_device) throw voice_exception::create_formatted("Couldn't open capture device {}", device_name);
+    if (!creation_status) throw voice_exception::create_formatted("Couldn't open capture device {}", device_name);
 
-    sleep_time = std::chrono::milliseconds{ frames_per_buffer * 500 / sample_rate };
+    record_handle = BASS_RecordStart(sample_rate, 1, BASS_SAMPLE_FLOAT, &bass_cb, this);
+
+    if (!record_handle) throw voice_exception::create_formatted("Couldn't start capture on device {}", device_name);
+
+    BASS_ChannelSetAttribute(record_handle, BASS_ATTRIB_GRANULE, frames_per_buffer);
 
     int opus_err;
     encoder = opus_encoder_create(sample_rate, 1, OPUS_APPLICATION_VOIP, &opus_err);
@@ -29,26 +44,18 @@ kvoice::sound_input_impl::sound_input_impl(std::string_view device_name, std::in
 
     if ((opus_err = opus_encoder_ctl(encoder, OPUS_SET_BITRATE(bitrate))) != OPUS_OK)
         throw voice_exception::create_formatted("Couldn't set encoder bitrate (errc = {})", opus_err);
-
-    input_alive = true;
-    input_thread = std::thread(&sound_input_impl::process_input, this);
 }
 
 kvoice::sound_input_impl::~sound_input_impl() {
-    input_alive = false;
-    input_thread.join();
 
-    alcCaptureCloseDevice(input_device);
+    BASS_RecordFree();
     opus_encoder_destroy(encoder);
 }
 
 bool kvoice::sound_input_impl::enable_input() {
     if (!input_active) {
-        std::unique_lock lck(device_mutex);
-        if (input_device) {
-            input_active = true;
-            alcCaptureStart(input_device);
-            return true;
+        if (record_handle) {
+            return input_active = !BASS_ChannelPlay(record_handle, false);
         }
         return false;
     }
@@ -58,27 +65,41 @@ bool kvoice::sound_input_impl::enable_input() {
 
 bool kvoice::sound_input_impl::disable_input() {
     if (input_active) {
-        std::unique_lock lck(device_mutex);
-        input_active = false;
-        if (input_device)
-            alcCaptureStop(input_device);
-        return true;
+        if (record_handle) {
+            return input_active = BASS_ChannelPause(record_handle);
+        }
+        return false;
     }
     return false;
 }
 
 void kvoice::sound_input_impl::set_mic_gain(float gain) {
-    input_gain.store(gain);
+    BASS_ChannelSetAttribute(record_handle, BASS_ATTRIB_VOL, gain);
 }
 
 void kvoice::sound_input_impl::change_device(std::string_view device_name) {
-    std::unique_lock lck(device_mutex);
+    BOOL creation_status = false;
+    if (device_name.empty()) {
+        creation_status = BASS_RecordInit(-1); // default device
+    } else {
+        BASS_DEVICEINFO info;
+        for (auto i = 0u; BASS_RecordGetDeviceInfo(i, &info); i++) {
+            if ((info.flags & BASS_DEVICE_ENABLED) && (info.flags & BASS_DEVICE_TYPE_MASK) ==
+                BASS_DEVICE_TYPE_MICROPHONE) {
+                if (device_name == info.name) {
+                    creation_status = BASS_RecordInit(i);
+                }
+            }
+        }
+    }
 
-    alcCaptureCloseDevice(input_device);
+    if (!creation_status) throw voice_exception::create_formatted("Couldn't open capture device {}", device_name);
 
-    input_device = alcCaptureOpenDevice(device_name.data(), sample_rate_, AL_FORMAT_MONO_FLOAT32, frames_per_buffer_);
+    record_handle = BASS_RecordStart(sample_rate_, 2, BASS_SAMPLE_FLOAT, &bass_cb, this);
 
-    if (!input_device) throw voice_exception::create_formatted("Couldn't open capture device {}", device_name);
+    if (!record_handle) throw voice_exception::create_formatted("Couldn't start capture on device {}", device_name);
+
+    BASS_ChannelSetAttribute(record_handle, BASS_ATTRIB_GRANULE, frames_per_buffer_);
 }
 
 void kvoice::sound_input_impl::set_input_callback(std::function<on_voice_input_t> cb) {
@@ -89,51 +110,30 @@ void kvoice::sound_input_impl::set_raw_input_callback(std::function<on_voice_raw
     on_raw_voice_input = std::move(cb);
 }
 
-void kvoice::sound_input_impl::process_input() {
+BOOL kvoice::sound_input_impl::process_input(HRECORD handle, const void* buffer, DWORD length) {
     using namespace std::chrono_literals;
 
+    auto        float_buff = static_cast<const float*>(buffer);
+    const DWORD buff_len = length / sizeof(float);
+
     std::array<std::uint8_t, kPacketMaxSize> packet{};
-    std::vector<float> capture_buffer( frames_per_buffer_ );
-    std::vector<float> encoder_buffer( kOpusFrameSize );
-    jnk0le::Ringbuffer<float, 8192, true> temporary_buffer{};
 
-    std::int32_t captured_frames;
+    const float mic_level = *std::max_element(float_buff, float_buff + buff_len);
+    on_raw_voice_input(float_buff, buff_len, mic_level);
 
-    while (input_alive) {
-        bool buffer_captured = false;
+    temporary_buffer.writeBuff(float_buff, buff_len);
 
-        {
-            std::unique_lock lck(device_mutex);
-            if (!input_device) {
-                std::this_thread::sleep_for(sleep_time);
-                continue;
-            }
-            alcGetIntegerv(input_device, ALC_CAPTURE_SAMPLES, 1, &captured_frames);
-            if (captured_frames >= frames_per_buffer_) {
-                alcCaptureSamples(input_device, capture_buffer.data(), frames_per_buffer_);
-                buffer_captured = true;
-            }
-        }
-
-        if (buffer_captured) {
-            const float mic_level = *std::ranges::max_element(capture_buffer);
-
-            on_raw_voice_input(capture_buffer.data(), capture_buffer.size(), mic_level);
-
-            std::ranges::transform(capture_buffer, capture_buffer.begin(),
-                                   [gain = input_gain.load()](const float v) { return v * gain; });
-
-            temporary_buffer.writeBuff(capture_buffer.data(), capture_buffer.size());
-
-            while (temporary_buffer.readAvailable() >= kOpusFrameSize) {
-                temporary_buffer.readBuff(encoder_buffer.data(), kOpusFrameSize);
-                const int  len = opus_encode_float(encoder, encoder_buffer.data(), kOpusFrameSize, packet.data(),
-                                                   kPacketMaxSize);
-                if (len < 0 || len > kPacketMaxSize) return;
-                on_voice_input(packet.data(), len);
-            }
-        }
-
-        std::this_thread::sleep_for(sleep_time);
+    while (temporary_buffer.readAvailable() >= kOpusFrameSize) {
+        temporary_buffer.readBuff(encoder_buffer.data(), kOpusFrameSize);
+        const int len = opus_encode_float(encoder, encoder_buffer.data(), kOpusFrameSize, packet.data(),
+                                          kPacketMaxSize);
+        if (len < 0 || len > kPacketMaxSize) return true;
+        on_voice_input(packet.data(), len);
     }
+
+    return true;
+}
+
+BOOL kvoice::sound_input_impl::bass_cb(HRECORD handle, const void* buffer, DWORD length, void* user) {
+    return static_cast<kvoice::sound_input_impl*>(user)->process_input(handle, buffer, length);
 }

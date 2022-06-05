@@ -6,6 +6,9 @@ option(BUILD_KVOICE_EXAMPLES "Build the examples" OFF)
 option(KVOICE_BUILD_STATIC "Build static libs" ON)
 
 find_package(Opus CONFIG REQUIRED)
+find_package(Boost REQUIRED)
+
+add_subdirectory("third-party")
 
 set(INCLUDE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/include")
 set(SRC_DIR "${CMAKE_CURRENT_SOURCE_DIR}/src")
@@ -35,7 +38,7 @@ if (${KVOICE_BUILD_STATIC})
 	target_compile_definitions(${PROJECT_NAME} PUBLIC KVOICE_STATIC)
 endif()
 
-target_link_libraries(kvoice PUBLIC Opus::opus OpenAL::OpenAL PRIVATE kin4stat::ktsignal)
+target_link_libraries(kvoice PUBLIC Opus::opus basslib Boost::boost)
 
 if (${BUILD_KVOICE_EXAMPLES}) 
 	add_subdirectory("examples")

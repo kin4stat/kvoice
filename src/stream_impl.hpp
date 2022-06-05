@@ -5,6 +5,7 @@
 #include <chrono>
 #include <queue>
 
+#include "bass/bass.h"
 #include "ringbuffer.hpp"
 #include "sound_output_impl.hpp"
 #include "kv_vector.hpp"
@@ -14,11 +15,6 @@ struct OpusDecoder;
 
 namespace kvoice {
 class stream_impl final : public stream {
-    static void _foo() {
-    }
-
-    using sconnection_t = decltype(sound_output_impl::drop_source_signal.scoped_connect(&_foo));
-
     static constexpr auto kBuffersCount = 16;
     static constexpr auto kMinBuffersCount = 8;
     static constexpr auto kRingBufferSize = 262144;
@@ -40,15 +36,19 @@ public:
 
     bool is_playing() override;
 
-    bool update() override;
+    void update() override;
 
 private:
-    void setup_spatial() const;
-    void update_source(std::uint32_t source) const;
-    void drop_source();
+    DWORD process_output(void *buffer, DWORD length);
 
-    std::array<std::uint32_t, kBuffersCount> buffers{};
-    std::queue<std::uint32_t>                free_buffers{};
+    static DWORD __stdcall bass_cb(HSTREAM handle, void *buffer, DWORD length, void *user) {
+        return static_cast<stream_impl*>(user)->process_output(buffer, length);
+    }
+
+    void setup_spatial() const;
+
+    HSTREAM stream_handle;
+
     std::uint32_t                            source{ 0 };
     std::chrono::steady_clock::time_point    last_source_request_time{};
     std::int32_t                             sample_rate{ 0 };
@@ -66,11 +66,7 @@ private:
     OpusDecoder*       decoder{ nullptr };
     sound_output_impl* output_impl{ nullptr };
 
-    sconnection_t signal_connection;
-
     bool playing{ false };
-    bool has_source{ false };
-    bool source_used_once{ false };
     bool is_spatial{ true };
 
     jnk0le::Ringbuffer<float, kRingBufferSize, true> ring_buffer{};

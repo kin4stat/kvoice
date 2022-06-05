@@ -71,6 +71,6 @@ public:
      * @brief updates internal info(like openal buffers), pushes new data to output
      * @return true on success, false on fail
      */
-    virtual bool update() = 0;
+    virtual void update() = 0;
 };
 }

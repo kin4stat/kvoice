@@ -15,8 +15,8 @@ bool s2_active = true;
 float pos_on_circle = 0.f;
 
 int main() {
-    constexpr auto sample_rate = 24000;
-    constexpr auto frames_per_buffer = 420;
+    constexpr auto sample_rate = 48000;
+    constexpr auto frames_per_buffer = 960;
     constexpr auto bitrate = 16000;
 
     auto [sound_input, error_msg] = kvoice::create_sound_input("", sample_rate, frames_per_buffer, bitrate);
@@ -29,8 +29,9 @@ int main() {
     });
     sound_input->enable_input();
 
-    auto [sound_output, error_msg1] = kvoice::create_sound_output("", sample_rate, 32);
+    auto [sound_output1, error_msg1] = kvoice::create_sound_output("", sample_rate);
 
+    auto& sound_output = sound_output1;
     s1 = sound_output->create_stream();
     s1->set_max_distance(100.f);
     s1->set_max_distance(30.f);
@@ -47,9 +48,9 @@ int main() {
 
     sound_output->update_me();
 
-    std::thread([]() {
+    std::thread([&]() {
         while (true) {
-            std::this_thread::sleep_for(std::chrono::milliseconds(20));
+            //std::this_thread::sleep_for(std::chrono::milliseconds(0));
             pos_on_circle += 0.02f;
             float x = radius * cosf(pos_on_circle);
             float y = radius * -sinf(pos_on_circle);
@@ -57,8 +58,7 @@ int main() {
             s1->set_position({ x, y, z });
             s1->set_velocity({ 0.0f, 0.0f, 0.0f });
             s1->set_direction({ 0.0f, 0.0f, 1.0f });
-            if (!s1->update())
-                return 1;
+            s1->update();
 
             x = radius * cosf(pos_on_circle + 1.5f);
             y = radius * -sinf(pos_on_circle + 1.5f);
@@ -66,8 +66,9 @@ int main() {
             s2->set_position({ x, y, z });
             s2->set_velocity({ 0.0f, 0.0f, 0.0f });
             s2->set_direction({ 0.0f, 0.0f, 1.0f });
-            if (!s2->update())
-                return 1;
+            s2->update();
+
+            sound_output->update_me();
         }
     }).detach();
 

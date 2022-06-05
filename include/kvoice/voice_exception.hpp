@@ -1,7 +1,7 @@
 #pragma once
 #include <stdexcept>
 #include <string>
-#include "fmt/core.h"
+#include <format>
 
 namespace kvoice {
 class voice_exception final : virtual public std::exception {
