@@ -38,22 +38,6 @@ inline std::string_view get_next_str(const char*& enumerator) {
 }
 
 /**
- * @brief the return type of @p create_sound_input and @p create_sound_output functions
- * @tparam DeviceT type of device
- */
-template <typename DeviceT>
-struct create_device_res {
-    /**
-     * @brief pointer to object if creating successful, else nullptr
-     */
-    std::unique_ptr<DeviceT> object;
-    /**
-     * @brief empty if object successfully created, else contains error message
-     */
-    std::string error_msg;
-};
-
-/**
  * @brief transforms internal OpenAL device list, and returns it
  * @return list of OpenAL input devices
  */
@@ -71,7 +55,7 @@ KVOICE_API std::vector<std::string> get_output_devices();
  * @param src_count count of max sound sources
  * @return pointer to sound device if successful, else error message string
  */
-KVOICE_API create_device_res<sound_output> create_sound_output(std::string_view device_name,
+KVOICE_API std::unique_ptr<sound_output> create_sound_output(std::string_view device_name,
                                                                std::uint32_t    sample_rate);
 /**
  * @brief creates OpenAL sound input device
@@ -81,7 +65,7 @@ KVOICE_API create_device_res<sound_output> create_sound_output(std::string_view 
  * @param bitrate input device bitrate
  * @return pointer to sound device if successful, else error message string
  */
-KVOICE_API create_device_res<sound_input> create_sound_input(std::string_view device_name,
+KVOICE_API std::unique_ptr<sound_input> create_sound_input(std::string_view device_name,
                                                              std::uint32_t    sample_rate,
                                                              std::uint32_t    frames_per_buffer,
                                                              std::uint32_t    bitrate);

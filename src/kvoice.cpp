@@ -28,24 +28,22 @@ std::vector<std::string> kvoice::get_output_devices() {
     return res;
 }
 
-kvoice::create_device_res<kvoice::sound_output> kvoice::create_sound_output(
+std::unique_ptr<kvoice::sound_output> kvoice::create_sound_output(
     std::string_view device_name, std::uint32_t sample_rate) {
 
     try {
-        auto output = std::make_unique<sound_output_impl>(device_name, sample_rate);
-        return { std::move(output), "" };
+        return std::make_unique<sound_output_impl>(device_name, sample_rate);
     } catch (voice_exception& e) {
-        return { nullptr, e.what() };
+        return nullptr;
     }
 }
 
-kvoice::create_device_res<kvoice::sound_input> kvoice::create_sound_input(
+std::unique_ptr<kvoice::sound_input> kvoice::create_sound_input(
     std::string_view device_name, std::uint32_t       sample_rate,
     std::uint32_t    frames_per_buffer, std::uint32_t bitrate) {
     try {
-        auto output = std::make_unique<sound_input_impl>(device_name, sample_rate, frames_per_buffer, bitrate);
-        return { std::move(output), "" };
+        return std::make_unique<sound_input_impl>(device_name, sample_rate, frames_per_buffer, bitrate);
     } catch (voice_exception& e) {
-        return { nullptr, e.what() };
+        return nullptr;
     }
 }

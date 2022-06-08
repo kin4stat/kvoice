@@ -1,9 +1,13 @@
 #pragma once
 
 #include <cstddef>
+#include <functional>
+#include <string_view>
 #include "kv_vector.hpp"
 
 namespace kvoice {
+using on_stream_end_cb = std::function<void()>;
+
 class stream {
 public:
     /**
@@ -69,8 +73,20 @@ public:
 
     /**
      * @brief updates internal info(like openal buffers), pushes new data to output
-     * @return true on success, false on fail
      */
     virtual void update() = 0;
+
+
+    /**
+     * @brief sets callback, that will be called on end of stream. Available only when stream created for online playing
+     * @param cb on end callback
+     */
+    virtual void on_end_stream_cb(on_stream_end_cb cb) = 0;
+
+    /**
+     * @brief sets url of stream. Available only when stream created for online playing
+     * @param url new url
+     */
+    virtual void set_url(std::string_view url) = 0;
 };
 }
