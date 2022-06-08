@@ -66,5 +66,10 @@ public:
      * @return pointer to stream
      */
     virtual std::unique_ptr<stream> create_stream() = 0;
+    /**
+     * @brief creates new stream on output
+     * @return pointer to stream
+     */
+    virtual std::unique_ptr<stream> create_stream(std::string_view url) = 0;
 };
 }
