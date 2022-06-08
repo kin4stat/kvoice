@@ -28,9 +28,9 @@ kvoice::sound_input_impl::sound_input_impl(std::string_view device_name, std::in
         }
     }
 
-    if (!creation_status) throw voice_exception::create_formatted("Couldn't open capture device {}", device_name);
+    if (!creation_status && BASS_ErrorGetCode() != BASS_ERROR_ALREADY) throw voice_exception::create_formatted("Couldn't open capture device {}", device_name);
 
-    record_handle = BASS_RecordStart(sample_rate, 1, BASS_SAMPLE_FLOAT, &bass_cb, this);
+    record_handle = BASS_RecordStart(sample_rate, 1, BASS_SAMPLE_FLOAT | BASS_RECORD_PAUSE, &bass_cb, this);
 
     if (!record_handle) throw voice_exception::create_formatted("Couldn't start capture on device {}", device_name);
 
@@ -55,7 +55,7 @@ kvoice::sound_input_impl::~sound_input_impl() {
 bool kvoice::sound_input_impl::enable_input() {
     if (!input_active) {
         if (record_handle) {
-            return input_active = !BASS_ChannelPlay(record_handle, false);
+            return input_active = BASS_ChannelPlay(record_handle, false);
         }
         return false;
     }
@@ -66,7 +66,7 @@ bool kvoice::sound_input_impl::enable_input() {
 bool kvoice::sound_input_impl::disable_input() {
     if (input_active) {
         if (record_handle) {
-            return input_active = BASS_ChannelPause(record_handle);
+            return input_active = !BASS_ChannelPause(record_handle);
         }
         return false;
     }
@@ -78,6 +78,7 @@ void kvoice::sound_input_impl::set_mic_gain(float gain) {
 }
 
 void kvoice::sound_input_impl::change_device(std::string_view device_name) {
+    BASS_RecordFree();
     BOOL creation_status = false;
     if (device_name.empty()) {
         creation_status = BASS_RecordInit(-1); // default device
@@ -88,6 +89,7 @@ void kvoice::sound_input_impl::change_device(std::string_view device_name) {
                 BASS_DEVICE_TYPE_MICROPHONE) {
                 if (device_name == info.name) {
                     creation_status = BASS_RecordInit(i);
+                    break;
                 }
             }
         }
@@ -95,7 +97,7 @@ void kvoice::sound_input_impl::change_device(std::string_view device_name) {
 
     if (!creation_status) throw voice_exception::create_formatted("Couldn't open capture device {}", device_name);
 
-    record_handle = BASS_RecordStart(sample_rate_, 2, BASS_SAMPLE_FLOAT, &bass_cb, this);
+    record_handle = BASS_RecordStart(sample_rate_, 1, BASS_SAMPLE_FLOAT, &bass_cb, this);
 
     if (!record_handle) throw voice_exception::create_formatted("Couldn't start capture on device {}", device_name);
 
