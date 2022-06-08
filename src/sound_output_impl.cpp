@@ -24,6 +24,13 @@ kvoice::sound_output_impl::create_stream_message::create_stream_message(sound_ou
       impl_ref(impl_ref) {
 }
 
+kvoice::sound_output_impl::create_online_stream_message::create_online_stream_message(sound_output_impl* impl_ref,
+    std::string url) :
+    url(std::move(url)),
+    task([this]() { return work_impl(); }),
+    impl_ref(impl_ref) {
+}
+
 BOOL kvoice::sound_output_impl::set_device_volume_message::work_impl() const {
     return BASS_SetVolume(this->volume);
 }
@@ -65,6 +72,10 @@ std::unique_ptr<kvoice::stream> kvoice::sound_output_impl::create_stream_message
     return std::make_unique<stream_impl>(impl_ref, impl_ref->sampling_rate);
 }
 
+std::unique_ptr<kvoice::stream> kvoice::sound_output_impl::create_online_stream_message::work_impl() const {
+    return std::make_unique<stream_impl>(impl_ref, url, impl_ref->sampling_rate);
+}
+
 kvoice::sound_output_impl::sound_output_impl(std::string_view device_name, std::uint32_t sample_rate)
     : sampling_rate(sample_rate), output_thread_messages(16){
     using namespace std::string_literals;
@@ -86,7 +97,7 @@ kvoice::sound_output_impl::sound_output_impl(std::string_view device_name, std::
             }
 
         }
-        BASS_Init(init_idx, sample_rate, BASS_DEVICE_STEREO, nullptr, nullptr);
+        BASS_Init(init_idx, sample_rate, BASS_DEVICE_MONO | BASS_DEVICE_3D, nullptr, nullptr);
 
         output_initialization.notify_one();
 
@@ -160,6 +171,12 @@ void kvoice::sound_output_impl::change_device(std::string_view device_name) {
 
 std::unique_ptr<kvoice::stream> kvoice::sound_output_impl::create_stream() {
     create_stream_message msg{ this };
+    output_thread_messages.push(&msg);
+    return msg.task.get_future().get();
+}
+
+std::unique_ptr<kvoice::stream> kvoice::sound_output_impl::create_stream(std::string_view url) {
+    create_online_stream_message msg{ this, std::string{ url } };
     output_thread_messages.push(&msg);
     return msg.task.get_future().get();
 }

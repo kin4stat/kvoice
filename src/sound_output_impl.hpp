@@ -69,6 +69,20 @@ class sound_output_impl : public sound_output {
         sound_output_impl* impl_ref;
     };
 
+    struct create_online_stream_message final : sound_thread_message {
+        explicit create_online_stream_message(sound_output_impl* impl_ref, std::string url);
+
+        void do_work() override { task(); }
+
+        ~create_online_stream_message() override = default;
+        std::packaged_task<std::unique_ptr<kvoice::stream>()> task;
+    private:
+        std::unique_ptr<kvoice::stream> work_impl() const;
+
+        sound_output_impl* impl_ref;
+        std::string url;
+    };
+
 public:
     /**
      * @brief Constructor
@@ -121,10 +135,11 @@ public:
      */
     void change_device(std::string_view device_name) override;
 
-    void set_buffering_time(std::uint32_t time_ms) override { buffering_time = time_ms; }
+    void                        set_buffering_time(std::uint32_t time_ms) override { buffering_time = time_ms; }
     [[nodiscard]] std::uint32_t get_buffering_time() const { return buffering_time; }
-    [[nodiscard]] float get_gain() const { return output_gain; }
+    [[nodiscard]] float         get_gain() const { return output_gain; }
     std::unique_ptr<stream>     create_stream() override;
+    std::unique_ptr<stream>     create_stream(std::string_view url) override;
 
     ktsignal::ktsignal<void()> drop_source_signal;
 private:
@@ -141,6 +156,6 @@ private:
     float output_gain{ 1.f };
 
     std::uint32_t sampling_rate{ 0 };
-    std::uint32_t  buffering_time{ 0 };
+    std::uint32_t buffering_time{ 0 };
 };
 } // namespace kvoice

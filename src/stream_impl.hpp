@@ -15,11 +15,17 @@ struct OpusDecoder;
 
 namespace kvoice {
 class stream_impl final : public stream {
+    enum class stream_type {
+        kOnlineDataStream,
+        kLocalDataStream,
+    };
+
     static constexpr auto kBuffersCount = 16;
     static constexpr auto kMinBuffersCount = 8;
     static constexpr auto kRingBufferSize = 262144;
     static constexpr auto kOpusBufferSize = 8196;
 public:
+    stream_impl(sound_output_impl* output, std::string_view url, std::int32_t sample_rate);
     stream_impl(sound_output_impl* output, std::int32_t sample_rate);
     ~stream_impl() override;
 
@@ -38,6 +44,8 @@ public:
 
     void update() override;
 
+    void on_end_stream_cb(kvoice::on_stream_end_cb) override;
+    void set_url(std::string_view url) override;
 private:
     DWORD process_output(void *buffer, DWORD length);
 
@@ -49,7 +57,8 @@ private:
 
     HSTREAM stream_handle;
 
-    std::uint32_t                            source{ 0 };
+    stream_type type;
+
     std::chrono::steady_clock::time_point    last_source_request_time{};
     std::int32_t                             sample_rate{ 0 };
 
@@ -68,6 +77,8 @@ private:
 
     bool playing{ false };
     bool is_spatial{ true };
+
+    kvoice::on_stream_end_cb on_end_cb;
 
     jnk0le::Ringbuffer<float, kRingBufferSize, true> ring_buffer{};
 };
