@@ -14,7 +14,7 @@ using on_voice_input_t = void(const void* buffer, std::size_t size);
  * @param size size of @p buffer
  * @param mic_level max input volume
  */
-using on_voice_raw_input = void(const void* buffer, std::size_t size, float mic_level);
+using on_voice_raw_input = void(void* buffer, std::size_t size, float mic_level);
 
 class sound_input {
 public:

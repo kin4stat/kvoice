@@ -115,7 +115,7 @@ void kvoice::sound_input_impl::set_raw_input_callback(std::function<on_voice_raw
 BOOL kvoice::sound_input_impl::process_input(HRECORD handle, const void* buffer, DWORD length) {
     using namespace std::chrono_literals;
 
-    auto        float_buff = static_cast<const float*>(buffer);
+    auto        float_buff = static_cast<float*>(const_cast<void*>(buffer));
     const DWORD buff_len = length / sizeof(float);
 
     std::array<std::uint8_t, kPacketMaxSize> packet{};

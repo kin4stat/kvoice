@@ -25,7 +25,7 @@ public:
     void set_input_callback(std::function<on_voice_input_t> cb) override;
     void set_raw_input_callback(std::function<on_voice_raw_input> cb) override;
 private:
-    BOOL process_input(HRECORD handle, const void* buffer, DWORD length);
+    BOOL process_input(HRECORD handle,const void* buffer, DWORD length);
 
     static BOOL __stdcall bass_cb(HRECORD handle, const void* buffer, DWORD length, void* user);
 
