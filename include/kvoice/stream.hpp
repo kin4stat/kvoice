@@ -88,5 +88,25 @@ public:
      * @param url new url
      */
     virtual void set_url(std::string_view url) = 0;
+
+    /**
+     * @brief continue playing for paused stream. Works only for online streams
+     */
+    virtual void continue_playing() = 0;
+
+    /**
+     * @brief pauses playing. Works only for online streams
+     */
+    virtual void pause_playing() = 0;
+
+    /**
+     * @brief mutes streams
+     */
+    virtual void mute_stream() = 0;
+
+    /**
+     * @brief unmutes streams
+     */
+    virtual void unmute_stream() = 0;
 };
 }
