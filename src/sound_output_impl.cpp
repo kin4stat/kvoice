@@ -2,82 +2,9 @@
 #include "sound_output_impl.hpp"
 
 #include "stream_impl.hpp"
-#include "voice_exception.hpp"
-
-kvoice::sound_output_impl::set_device_volume_message::set_device_volume_message(float volume)
-    : task([this]() { return work_impl(); }),
-      volume(volume) {
-}
-
-kvoice::sound_output_impl::set_device_message::set_device_message(std::string device_name)
-    : task([this]() { return work_impl(); }),
-      device_name(std::move(device_name)) {
-}
-
-kvoice::sound_output_impl::update_device_message::update_device_message(sound_output_impl& impl_ref)
-    : task([this]() { return work_impl(); }),
-      impl_ref(impl_ref) {
-}
-
-kvoice::sound_output_impl::create_stream_message::create_stream_message(sound_output_impl* impl_ref)
-    : task([this]() { return work_impl(); }),
-      impl_ref(impl_ref) {
-}
-
-kvoice::sound_output_impl::create_online_stream_message::create_online_stream_message(sound_output_impl* impl_ref,
-    std::string url) :
-    url(std::move(url)),
-    task([this]() { return work_impl(); }),
-    impl_ref(impl_ref) {
-}
-
-BOOL kvoice::sound_output_impl::set_device_volume_message::work_impl() const {
-    return BASS_SetVolume(this->volume);
-}
-
-BOOL kvoice::sound_output_impl::set_device_message::work_impl() const {
-    BASS_DEVICEINFO info;
-    for (auto i = 1u; BASS_GetDeviceInfo(i, &info); i++) {
-        if (info.flags & BASS_DEVICE_ENABLED) {
-            if (device_name == info.name) {
-                if (BASS_SetDevice(i)) {
-                    return TRUE;
-                } else {
-                    BASS_SetDevice(-1);
-                }
-            }
-        }
-    }
-    return BASS_SetDevice(-1);
-}
-
-BOOL kvoice::sound_output_impl::update_device_message::work_impl() const {
-    std::lock_guard lock(impl_ref.spatial_mtx);
-
-    auto vec_convert = [](kvoice::vector vec) {
-        return BASS_3DVECTOR{ vec.x, vec.y, vec.z };
-    };
-
-    BASS_3DVECTOR pos = vec_convert(impl_ref.listener_pos);
-    BASS_3DVECTOR vel = vec_convert(impl_ref.listener_vel);
-    BASS_3DVECTOR front = vec_convert(impl_ref.listener_front);
-    BASS_3DVECTOR up = vec_convert(impl_ref.listener_up);
-
-    auto result = BASS_Set3DPosition(&pos, &vel, &front, &up);
-    BASS_Apply3D();
-    return result;
-}
-
-std::unique_ptr<kvoice::stream> kvoice::sound_output_impl::create_stream_message::work_impl() const {
-    return std::make_unique<stream_impl>(impl_ref, impl_ref->sampling_rate);
-}
-
-std::unique_ptr<kvoice::stream> kvoice::sound_output_impl::create_online_stream_message::work_impl() const {
-    return std::make_unique<stream_impl>(impl_ref, url, impl_ref->sampling_rate);
-}
 
 kvoice::sound_output_impl::sound_output_impl(std::string_view device_name, std::uint32_t sample_rate)
-    : sampling_rate(sample_rate), output_thread_messages(16){
+    : sampling_rate(sample_rate), requests_queue(16) {
     using namespace std::string_literals;
 
     std::mutex              condvar_mtx{};
@@ -99,15 +26,55 @@ kvoice::sound_output_impl::sound_output_impl(std::string_view device_name, std::
         }
         BASS_Init(init_idx, sample_rate, BASS_DEVICE_MONO | BASS_DEVICE_3D, nullptr, nullptr);
 
+        // dummy https request to init OpenSSL(not thread safe in basslib)
+        auto temp_handle = BASS_StreamCreateURL("https://www.google.com", 0, 0, NULL, 0);
+
+        BASS_StreamFree(temp_handle);
+
         output_initialization.notify_one();
 
         while (output_alive.load()) {
-            if (!output_thread_messages.empty()) {
-                auto message = output_thread_messages.front();
-                message->do_work();
+            BASS_SetVolume(output_gain.load());
+            {
+                std::lock_guard lock(spatial_mtx);
 
-                output_thread_messages.pop();
+                auto vec_convert = [](kvoice::vector vec) {
+                    return BASS_3DVECTOR{ vec.x, vec.y, vec.z };
+                };
+
+                BASS_3DVECTOR pos = vec_convert(listener_pos);
+                BASS_3DVECTOR vel = vec_convert(listener_vel);
+                BASS_3DVECTOR front = vec_convert(listener_front);
+                BASS_3DVECTOR up = vec_convert(listener_up);
+
+                BASS_Set3DPosition(&pos, &vel, &front, &up);
+                BASS_Apply3D();
             }
+            if (device_need_update.load()) {
+                BASS_DEVICEINFO info;
+                for (auto i = 1u; BASS_GetDeviceInfo(i, &info); i++) {
+                    if (info.flags & BASS_DEVICE_ENABLED) {
+                        if (this->device_name == info.name) {
+                            if (BASS_SetDevice(i)) {
+                                
+                            } else {
+                                BASS_SetDevice(-1);
+                            }
+                        }
+                    }
+                }
+                BASS_SetDevice(-1);
+                device_need_update.store(false);
+            }
+            requests_queue.consume_all([this](const request_stream_message& msg) {
+                if (msg.params.has_value()) {
+                    auto& params = *msg.params;
+                    msg.on_creation_callback(std::make_unique<stream_impl>(this, params.url, params.file_offset, this->sampling_rate));
+                }
+                else {
+                    msg.on_creation_callback(std::make_unique<stream_impl>(this, this->sampling_rate));
+                }
+            });
 
             std::this_thread::sleep_for(std::chrono::milliseconds(16));
         }
@@ -144,39 +111,21 @@ void kvoice::sound_output_impl::set_my_orientation_front(vector front) noexcept 
     listener_front = front;
 }
 
-void kvoice::sound_output_impl::update_me() {
-    update_device_message msg{ *this };
-    output_thread_messages.push(&msg);
-    auto result = msg.task.get_future().get();
-    if (!result) {
-        throw voice_exception::create_formatted("Couldn't update device");
-    }
-}
-
 void kvoice::sound_output_impl::set_gain(float gain) noexcept {
-    output_gain = gain;
-    set_device_volume_message msg{ output_gain };
-    output_thread_messages.push(&msg);
-    msg.task.get_future().get();
+    output_gain.store(gain);
 }
 
 void kvoice::sound_output_impl::change_device(std::string_view device_name) {
-    set_device_message msg{ std::string{ device_name } };
-    output_thread_messages.push(&msg);
-    auto result = msg.task.get_future().get();
-    if (!result) {
-        throw voice_exception::create_formatted("Couldn't open device {}", device_name);
-    }
+    if (device_need_update.load()) return;
+    this->device_name = device_name;
+    device_need_update.store(true);
 }
 
-std::unique_ptr<kvoice::stream> kvoice::sound_output_impl::create_stream() {
-    create_stream_message msg{ this };
-    output_thread_messages.push(&msg);
-    return msg.task.get_future().get();
+void kvoice::sound_output_impl::create_stream(on_create_callback cb) {
+    requests_queue.push(request_stream_message{std::nullopt, cb});
 }
 
-std::unique_ptr<kvoice::stream> kvoice::sound_output_impl::create_stream(std::string_view url) {
-    create_online_stream_message msg{ this, std::string{ url } };
-    output_thread_messages.push(&msg);
-    return msg.task.get_future().get();
+void kvoice::sound_output_impl::create_stream(on_create_callback cb, 
+    std::string_view url, std::uint32_t file_offset) {
+    requests_queue.push(request_stream_message{std::make_optional(online_stream_parameters{ std::string{ url }, file_offset }), std::move(cb)});
 }

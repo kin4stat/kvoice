@@ -5,6 +5,7 @@
 #include "stream.hpp"
 
 namespace kvoice {
+using on_create_callback = std::function<void(std::unique_ptr<stream>)>;
 class sound_output {
 public:
     /**
@@ -65,11 +66,11 @@ public:
      * @brief creates new stream on output
      * @return pointer to stream
      */
-    virtual std::unique_ptr<stream> create_stream() = 0;
+    virtual void create_stream(on_create_callback cb) = 0;
     /**
      * @brief creates new stream on output
      * @return pointer to stream
      */
-    virtual std::unique_ptr<stream> create_stream(std::string_view url) = 0;
+    virtual void create_stream(on_create_callback cb, std::string_view url, std::uint32_t file_offset) = 0;
 };
 }
