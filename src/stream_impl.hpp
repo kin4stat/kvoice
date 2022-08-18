@@ -29,6 +29,7 @@ public:
     stream_impl(sound_output_impl* output, std::int32_t sample_rate);
     ~stream_impl() override;
 
+    bool push_buffer(const void* data, std::size_t count) override;
     bool push_opus_buffer(const void* data, std::size_t count) override;
 
     void set_position(vector pos) override;
@@ -43,6 +44,8 @@ public:
     bool is_playing() override;
 
     void update() override;
+
+    void set_granularity(std::uint32_t granularity) override;
 
     void on_end_stream_cb(kvoice::on_stream_end_cb) override;
     void set_url(std::string_view url) override;

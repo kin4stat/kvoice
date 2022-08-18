@@ -1,0 +1,3 @@
+[submodule "third-party/rnnoise"]
+	path = third-party/rnnoise
+	url = https://github.com/kin4stat/rnnoise-cmake

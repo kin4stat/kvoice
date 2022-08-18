@@ -31,7 +31,7 @@ kvoice::stream_impl::stream_impl(sound_output_impl* output, std::string_view url
 kvoice::stream_impl::stream_impl(sound_output_impl* output, std::int32_t sample_rate)
     : sample_rate(sample_rate),
       output_impl(output) {
-    stream_handle = BASS_StreamCreate(sample_rate, 1, BASS_SAMPLE_FLOAT, &bass_cb, this);
+    stream_handle = BASS_StreamCreate(sample_rate, 1, BASS_SAMPLE_FLOAT | BASS_SAMPLE_3D, &bass_cb, this);
     type = stream_type::kLocalDataStream;
     int opus_err;
     decoder = opus_decoder_create(sample_rate, 1, &opus_err);
@@ -40,12 +40,24 @@ kvoice::stream_impl::stream_impl(sound_output_impl* output, std::int32_t sample_
         throw voice_exception::create_formatted(
             "Failed to opus decoder (errc = {})", opus_err);
 
-    BASS_ChannelSetAttribute(stream_handle, BASS_ATTRIB_GRANULE, 960);
+    BASS_ChannelSetAttribute(stream_handle, BASS_ATTRIB_GRANULE, 480);
     BASS_ChannelPlay(stream_handle, false);
 }
 
 kvoice::stream_impl::~stream_impl() {
     BASS_StreamFree(stream_handle);
+}
+
+bool kvoice::stream_impl::push_buffer(const void* data, std::size_t count) {
+    /*float final_gain = extra_gain;
+
+    if (final_gain != 1.f) {
+        std::transform(out.begin(), out.begin() + frame_size, out.begin(),
+                       [final_gain](float v) { return v * final_gain; });
+    }*/
+
+    ring_buffer.writeBuff(reinterpret_cast<const float*>(data), count);
+    return true;
 }
 
 bool kvoice::stream_impl::push_opus_buffer(const void* data, std::size_t count) {
@@ -101,6 +113,10 @@ void kvoice::stream_impl::set_spatial_state(bool spatial_state) {
 void kvoice::stream_impl::set_gain(float gain) {
     output_gain = gain;
     BASS_ChannelSetAttribute(stream_handle, BASS_ATTRIB_VOL, gain);
+}
+
+void  kvoice::stream_impl::set_granularity(std::uint32_t granularity) {
+    BASS_ChannelSetAttribute(stream_handle, BASS_ATTRIB_GRANULE, granularity);
 }
 
 bool kvoice::stream_impl::is_playing() {

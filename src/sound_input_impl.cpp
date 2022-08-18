@@ -5,6 +5,7 @@
 #include <algorithm>
 #include <array>
 #include "ringbuffer.hpp"
+#include "rnnoise.h"
 
 #include "voice_exception.hpp"
 
@@ -44,12 +45,15 @@ kvoice::sound_input_impl::sound_input_impl(std::string_view device_name, std::in
 
     if ((opus_err = opus_encoder_ctl(encoder, OPUS_SET_BITRATE(bitrate))) != OPUS_OK)
         throw voice_exception::create_formatted("Couldn't set encoder bitrate (errc = {})", opus_err);
+
+    rnnoise = rnnoise_create(NULL);
 }
 
 kvoice::sound_input_impl::~sound_input_impl() {
 
     BASS_RecordFree();
     opus_encoder_destroy(encoder);
+    rnnoise_destroy(rnnoise);
 }
 
 bool kvoice::sound_input_impl::enable_input() {
@@ -112,6 +116,10 @@ void kvoice::sound_input_impl::set_raw_input_callback(std::function<on_voice_raw
     on_raw_voice_input = std::move(cb);
 }
 
+void kvoice::sound_input_impl::toggle_rnnoise(bool toogle) {
+    rnnoise_active = toogle;
+}
+
 BOOL kvoice::sound_input_impl::process_input(HRECORD handle, const void* buffer, DWORD length) {
     using namespace std::chrono_literals;
 
@@ -127,6 +135,10 @@ BOOL kvoice::sound_input_impl::process_input(HRECORD handle, const void* buffer,
 
     while (temporary_buffer.readAvailable() >= kOpusFrameSize) {
         temporary_buffer.readBuff(encoder_buffer.data(), kOpusFrameSize);
+
+        if (rnnoise_active)
+            rnnoise_process_frame(rnnoise, encoder_buffer.data(), encoder_buffer.data());
+
         const int len = opus_encode_float(encoder, encoder_buffer.data(), kOpusFrameSize, packet.data(),
                                           kPacketMaxSize);
         if (len < 0 || len > kPacketMaxSize) return true;

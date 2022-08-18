@@ -2,7 +2,7 @@
 
 project ("kvoice")
 
-option(BUILD_KVOICE_EXAMPLES "Build the examples" OFF)
+option(BUILD_KVOICE_EXAMPLES "Build the examples" ON)
 option(KVOICE_BUILD_STATIC "Build static libs" ON)
 
 find_package(Opus CONFIG REQUIRED)
@@ -38,7 +38,7 @@ if (${KVOICE_BUILD_STATIC})
 	target_compile_definitions(${PROJECT_NAME} PUBLIC KVOICE_STATIC)
 endif()
 
-target_link_libraries(kvoice PUBLIC Opus::opus basslib Boost::boost)
+target_link_libraries(kvoice PUBLIC Opus::opus basslib Boost::boost rnnoise)
 
 if (${BUILD_KVOICE_EXAMPLES}) 
 	add_subdirectory("examples")

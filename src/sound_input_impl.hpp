@@ -9,6 +9,7 @@
 #include "sound_input.hpp"
 
 struct OpusEncoder;
+struct DenoiseState;
 
 namespace kvoice {
 constexpr auto kOpusFrameSize = 960;
@@ -24,6 +25,7 @@ public:
     void change_device(std::string_view device_name) override;
     void set_input_callback(std::function<on_voice_input_t> cb) override;
     void set_raw_input_callback(std::function<on_voice_raw_input> cb) override;
+    void toggle_rnnoise(bool toogle) override;
 private:
     BOOL process_input(HRECORD handle,const void* buffer, DWORD length);
 
@@ -41,6 +43,9 @@ private:
     std::function<on_voice_raw_input> on_raw_voice_input{};
 
     bool input_active{ false };
+    bool rnnoise_active{ false };
+
+    DenoiseState* rnnoise;
 
     std::vector<float>                    encoder_buffer;
     jnk0le::Ringbuffer<float, 8192, true> temporary_buffer{};

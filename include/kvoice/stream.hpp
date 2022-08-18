@@ -21,6 +21,14 @@ public:
      * @param count size of @p buffer
      * @return true on success, false on fail
      */
+    virtual bool push_buffer(const void* data, std::size_t count) = 0;
+
+    /**
+     * @brief pushes buffer with data to encoder and then to the sound output
+     * @param data buffer with opus encoded data
+     * @param count size of @p buffer
+     * @return true on success, false on fail
+     */
     virtual bool push_opus_buffer(const void* data, std::size_t count) = 0;
 
     /**
@@ -76,6 +84,11 @@ public:
      */
     virtual void update() = 0;
 
+    /**
+     * @brief 
+     * @param granularity 
+     */
+    virtual void set_granularity(std::uint32_t granularity) = 0;
 
     /**
      * @brief sets callback, that will be called on end of stream. Available only when stream created for online playing

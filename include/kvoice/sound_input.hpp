@@ -54,5 +54,11 @@ public:
      * @param cb user callback
      */
     virtual void set_raw_input_callback(std::function<on_voice_raw_input> cb) = 0;
+
+    /**
+     * @brief 
+     * @param toogle 
+     */
+    virtual void toggle_rnnoise(bool toogle) = 0;
 };
 }
