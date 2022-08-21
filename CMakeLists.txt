@@ -38,6 +38,8 @@ if (${KVOICE_BUILD_STATIC})
 	target_compile_definitions(${PROJECT_NAME} PUBLIC KVOICE_STATIC)
 endif()
 
+target_link_libraries(rnnoise PRIVATE Opus::opus)
+
 target_link_libraries(kvoice PUBLIC Opus::opus basslib Boost::boost rnnoise)
 
 if (${BUILD_KVOICE_EXAMPLES}) 
