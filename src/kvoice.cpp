@@ -9,9 +9,15 @@ std::vector<std::string> kvoice::get_input_devices() {
 
     BASS_DEVICEINFO info;
     for (auto i = 0u; BASS_RecordGetDeviceInfo(i, &info); i++) {
-        if ((info.flags & BASS_DEVICE_ENABLED) && (info.flags & BASS_DEVICE_TYPE_MASK) ==
-            BASS_DEVICE_TYPE_MICROPHONE) {
-            res.emplace_back(info.name);
+        if ((info.flags & BASS_DEVICE_ENABLED)) {
+            auto type = info.flags & BASS_DEVICE_TYPE_MASK;
+            if (type == BASS_DEVICE_TYPE_MICROPHONE ||
+                type == BASS_DEVICE_TYPE_HANDSET ||
+                type == BASS_DEVICE_TYPE_HEADSET ||
+                type == BASS_DEVICE_TYPE_LINE ||
+                type == BASS_DEVICE_TYPE_DIGITAL) {
+                res.emplace_back(info.name);
+            }
         }
     }
     return res;
@@ -30,7 +36,6 @@ std::vector<std::string> kvoice::get_output_devices() {
 
 std::unique_ptr<kvoice::sound_output> kvoice::create_sound_output(
     std::string_view device_name, std::uint32_t sample_rate) {
-
     try {
         return std::make_unique<sound_output_impl>(device_name, sample_rate);
     } catch (voice_exception& e) {

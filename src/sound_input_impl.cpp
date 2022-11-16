@@ -20,16 +20,23 @@ kvoice::sound_input_impl::sound_input_impl(std::string_view device_name, std::in
     } else {
         BASS_DEVICEINFO info;
         for (auto i = 0u; BASS_RecordGetDeviceInfo(i, &info); i++) {
-            if ((info.flags & BASS_DEVICE_ENABLED) && (info.flags & BASS_DEVICE_TYPE_MASK) ==
-                BASS_DEVICE_TYPE_MICROPHONE) {
-                if (device_name == info.name) {
+            if ((info.flags & BASS_DEVICE_ENABLED)) {
+                auto type = info.flags & BASS_DEVICE_TYPE_MASK;
+                if ((type == BASS_DEVICE_TYPE_MICROPHONE ||
+                     type == BASS_DEVICE_TYPE_HANDSET ||
+                     type == BASS_DEVICE_TYPE_HEADSET ||
+                     type == BASS_DEVICE_TYPE_LINE ||
+                     type == BASS_DEVICE_TYPE_DIGITAL) &&
+                    device_name == info.name) {
                     creation_status = BASS_RecordInit(i);
                 }
             }
         }
     }
 
-    if (!creation_status && BASS_ErrorGetCode() != BASS_ERROR_ALREADY) throw voice_exception::create_formatted("Couldn't open capture device {}", device_name);
+    if (!creation_status && BASS_ErrorGetCode() != BASS_ERROR_ALREADY)
+        throw voice_exception::create_formatted(
+            "Couldn't open capture device {}", device_name);
 
     record_handle = BASS_RecordStart(sample_rate, 1, BASS_SAMPLE_FLOAT | BASS_RECORD_PAUSE, &bass_cb, this);
 
@@ -50,7 +57,6 @@ kvoice::sound_input_impl::sound_input_impl(std::string_view device_name, std::in
 }
 
 kvoice::sound_input_impl::~sound_input_impl() {
-
     BASS_RecordFree();
     opus_encoder_destroy(encoder);
     rnnoise_destroy(rnnoise);
@@ -89,11 +95,15 @@ void kvoice::sound_input_impl::change_device(std::string_view device_name) {
     } else {
         BASS_DEVICEINFO info;
         for (auto i = 0u; BASS_RecordGetDeviceInfo(i, &info); i++) {
-            if ((info.flags & BASS_DEVICE_ENABLED) && (info.flags & BASS_DEVICE_TYPE_MASK) ==
-                BASS_DEVICE_TYPE_MICROPHONE) {
-                if (device_name == info.name) {
+            if ((info.flags & BASS_DEVICE_ENABLED)) {
+                auto type = info.flags & BASS_DEVICE_TYPE_MASK;
+                if ((type == BASS_DEVICE_TYPE_MICROPHONE ||
+                     type == BASS_DEVICE_TYPE_HANDSET ||
+                     type == BASS_DEVICE_TYPE_HEADSET ||
+                     type == BASS_DEVICE_TYPE_LINE ||
+                     type == BASS_DEVICE_TYPE_DIGITAL) &&
+                    device_name == info.name) {
                     creation_status = BASS_RecordInit(i);
-                    break;
                 }
             }
         }
@@ -129,7 +139,8 @@ BOOL kvoice::sound_input_impl::process_input(HRECORD handle, const void* buffer,
     std::array<std::uint8_t, kPacketMaxSize> packet{};
 
     const float mic_level = *std::max_element(float_buff, float_buff + buff_len);
-    on_raw_voice_input(float_buff, buff_len, mic_level);
+    if (on_raw_voice_input)
+        on_raw_voice_input(float_buff, buff_len, mic_level);
 
     temporary_buffer.writeBuff(float_buff, buff_len);
 
@@ -142,7 +153,8 @@ BOOL kvoice::sound_input_impl::process_input(HRECORD handle, const void* buffer,
         const int len = opus_encode_float(encoder, encoder_buffer.data(), kOpusFrameSize, packet.data(),
                                           kPacketMaxSize);
         if (len < 0 || len > kPacketMaxSize) return true;
-        on_voice_input(packet.data(), len);
+        if (on_voice_input)
+            on_voice_input(packet.data(), len);
     }
 
     return true;
