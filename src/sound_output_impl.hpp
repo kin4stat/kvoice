@@ -4,6 +4,7 @@
 
 #include "bass/bass.h"
 #include <variant>
+#include <optional>
 #include "sound_output.hpp"
 #include "ktsignal/ktsignal.hpp"
 
