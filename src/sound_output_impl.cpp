@@ -1,4 +1,5 @@
 #include "bass/bass.h"
+#include "voice_exception.hpp"
 #include "sound_output_impl.hpp"
 
 #include "stream_impl.hpp"
@@ -24,7 +25,10 @@ kvoice::sound_output_impl::sound_output_impl(std::string_view device_name, std::
             }
 
         }
-        BASS_Init(init_idx, sample_rate, BASS_DEVICE_MONO | BASS_DEVICE_3D, nullptr, nullptr);
+        auto result = BASS_Init(init_idx, sample_rate, BASS_DEVICE_MONO | BASS_DEVICE_3D, nullptr, nullptr);
+        if (!result) {
+            throw voice_exception::create_formatted("Couldn't open capture device {}", device_name);
+        }
 
         // dummy https request to init OpenSSL(not thread safe in basslib)
         auto temp_handle = BASS_StreamCreateURL("https://www.google.com", 0, 0, NULL, 0);
@@ -34,7 +38,7 @@ kvoice::sound_output_impl::sound_output_impl(std::string_view device_name, std::
         output_initialization.notify_one();
 
         while (output_alive.load()) {
-            BASS_SetVolume(output_gain.load());
+            BASS_SetConfig(BASS_CONFIG_GVOL_STREAM, static_cast<unsigned>(output_gain.load() * 10000));
             {
                 std::lock_guard lock(spatial_mtx);
 
