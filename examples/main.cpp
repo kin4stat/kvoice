@@ -16,7 +16,7 @@ float pos_on_circle = 0.f;
 
 int main() {
     constexpr auto sample_rate = 48000;
-    constexpr auto frames_per_buffer = 960;
+    constexpr auto frames_per_buffer = 480;
     constexpr auto bitrate = 16000;
 
     auto sound_input = kvoice::create_sound_input("", sample_rate, frames_per_buffer, bitrate);
@@ -29,54 +29,66 @@ int main() {
     });
     sound_input->enable_input();
 
+    
+
     auto sound_output1 = kvoice::create_sound_output("", sample_rate);
 
     auto& sound_output = sound_output1;
-    //s1 = sound_output->create_stream();
-    //s1->set_max_distance(100.f);
-    //s1->set_max_distance(30.f);
 
-    //s2 = sound_output->create_stream();
-    //s2->set_max_distance(100.f);
-    //s2->set_min_distance(30.f);
+    sound_output->create_stream([](auto stream) {
+        s1 = std::move(stream);
 
-    //sound_output->set_my_position({ 0.f, 0.f, 0.f });
-    //sound_output->set_my_velocity({ 0.f, 0.f, 0.f });
+        s1->set_min_distance(30.f);
+        s1->set_max_distance(100.f);
 
-    //sound_output->set_my_orientation_front({ 0.f, 0.f, 1.f });
-    //sound_output->set_my_orientation_up({ 1.f, 0.f, 0.f });
+    });
+    sound_output->create_stream([](auto stream) {
+        s2 = std::move(stream);
 
-    //sound_output->update_me();
+        s2->set_min_distance(30.f);
+        s2->set_max_distance(100.f);
+    });
 
-    //std::thread([&]() {
-    //    while (true) {
-    //        //std::this_thread::sleep_for(std::chrono::milliseconds(0));
-    //        pos_on_circle += 0.02f;
-    //        float x = radius * cosf(pos_on_circle);
-    //        float y = radius * -sinf(pos_on_circle);
-    //        float z = 0;
-    //        s1->set_position({ x, y, z });
-    //        s1->set_velocity({ 0.0f, 0.0f, 0.0f });
-    //        s1->set_direction({ 0.0f, 0.0f, 1.0f });
-    //        s1->update();
+    sound_output->set_my_position({ 0.f, 0.f, 0.f });
+    sound_output->set_my_velocity({ 0.f, 0.f, 0.f });
 
-    //        x = radius * cosf(pos_on_circle + 1.5f);
-    //        y = radius * -sinf(pos_on_circle + 1.5f);
-    //        z = 0;
-    //        s2->set_position({ x, y, z });
-    //        s2->set_velocity({ 0.0f, 0.0f, 0.0f });
-    //        s2->set_direction({ 0.0f, 0.0f, 1.0f });
-    //        s2->update();
+    sound_output->set_my_orientation_front({ 0.f, 0.f, 1.f });
+    sound_output->set_my_orientation_up({ 1.f, 0.f, 0.f });
 
-    //        sound_output->update_me();
-    //    }
-    //}).detach();
+    sound_output->update_me();
 
-    //while (true) {
-    //    int key = getchar();
-    //    if (key == '1') s1_active = !s1_active;
-    //    if (key == '2') s2_active = !s2_active;
+    std::thread([&]() {
+        while(!s1 || !s2) {
+            std::this_thread::sleep_for(std::chrono::milliseconds(0));
+        }
+        while (true) {
+            std::this_thread::sleep_for(std::chrono::milliseconds(16));
+            pos_on_circle += 0.02f;
+            float x = radius * cosf(pos_on_circle);
+            float y = radius * -sinf(pos_on_circle);
+            float z = 0;
+            s1->set_position({ x, y, z });
+            s1->set_velocity({ 0.0f, 0.0f, 0.0f });
+            s1->set_direction({ 0.0f, 0.0f, 1.0f });
+            s1->update();
 
-    //    std::this_thread::sleep_for(std::chrono::milliseconds(1));
-    //}
+            x = radius * cosf(pos_on_circle + 1.5f);
+            y = radius * -sinf(pos_on_circle + 1.5f);
+            z = 0;
+            s2->set_position({ x, y, z });
+            s2->set_velocity({ 0.0f, 0.0f, 0.0f });
+            s2->set_direction({ 0.0f, 0.0f, 1.0f });
+            s2->update();
+
+            sound_output->update_me();
+        }
+    }).detach();
+
+    while (true) {
+        int key = getchar();
+        if (key == '1') s1_active = !s1_active;
+        if (key == '2') s2_active = !s2_active;
+
+        std::this_thread::sleep_for(std::chrono::milliseconds(1));
+    }
 }
