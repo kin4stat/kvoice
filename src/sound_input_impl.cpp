@@ -145,12 +145,12 @@ BOOL kvoice::sound_input_impl::process_input(HRECORD handle, const void* buffer,
     temporary_buffer.writeBuff(float_buff, buff_len);
 
     while (temporary_buffer.readAvailable() >= kOpusFrameSize) {
-        temporary_buffer.readBuff(encoder_buffer.data(), kOpusFrameSize);
+        auto count = temporary_buffer.readBuff(encoder_buffer.data(), kOpusFrameSize);
 
         if (rnnoise_active)
             rnnoise_process_frame(rnnoise, encoder_buffer.data(), encoder_buffer.data());
 
-        const int len = opus_encode_float(encoder, encoder_buffer.data(), kOpusFrameSize, packet.data(),
+        const int len = opus_encode_float(encoder, encoder_buffer.data(), count, packet.data(),
                                           kPacketMaxSize);
         if (len < 0 || len > kPacketMaxSize) return true;
         if (on_voice_input)
